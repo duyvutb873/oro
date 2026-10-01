@@ -193,3 +193,30 @@ wc -l "$run_dir/sandbox/sandbox_output.jsonl"
 
 The artifacts contain sealed task data and agent trajectories. Keep them local
 and do not publish them.
+
+### Comparing agents over repeated runs
+
+Agent models and the shopper simulator are not deterministic, so a single run
+rarely shows whether a change helped. `tools/local_bench.py` repeats the local
+test for one or more agents, interleaving them each round. With `--problems`,
+every agent in a round gets the same sampled tasks. It then reports the aggregate (mean, spread, min, max),
+per-family rewards, per-task deltas and flaky tasks, why tasks failed (reward
+reason, failed verifier checks, terminal reason), and cost and latency from the
+sandbox output. It uses only the Python standard library.
+
+Keep agent files inside the repository so the test container can mount them;
+`submit/` is ignored by Git.
+
+```bash
+python3 tools/local_bench.py run --name baseline --repeats 3 \
+    --agent ref=src/agent/environment_agent.py \
+    --agent mine=submit/my_agent.py
+
+python3 tools/local_bench.py report logs/bench/baseline
+python3 tools/local_bench.py failures logs/bench/baseline --label mine --family recovery
+```
+
+`report` and `failures` also accept existing run directories with
+`--run label=logs/environment-runs/local-...`. `--resume` adds rounds to an
+existing bench. Reports are written to `report.txt` and `report.json` in the
+bench directory, under `logs/`, which Git ignores.
